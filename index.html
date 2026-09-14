@@ -141,10 +141,15 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid 
 <p class="small"><b>Emergency Backup:</b> Downloads a text copy directly from this browser. The normal PDF requires a successful Submit for Review.</p>
 <p id="savemsg" class="small">Your work autosaves to the class tool after you enter your class code. A local backup is also kept on this device.</p></div>
 
-<section id="technicalFallback" style="display:none;margin-top:80px;border-top:1px solid #bbb;padding-top:18px">
-  <h2>Technical fallback</h2>
-  <p class="small">Use this only if Submit for Review could not connect or timed out. This copy will be marked <b>AI Review Not Completed — Technical Override</b>.</p>
-  <button type="button" id="overridePdfBtn" onclick="technicalOverridePdf()">Generate Technical Override PDF</button>
+<section id="technicalFallback" style="margin-top:100px;border-top:1px solid #bbb;padding-top:18px">
+  <details>
+    <summary style="cursor:pointer;font-size:.9rem">Technical / Teacher Failsafe</summary>
+    <div style="margin-top:12px">
+      <p class="small"><b>Use only when Submit for Review cannot be completed because of a technical problem or when your teacher directs you to use it.</b> This bypasses the AI-review requirement. The PDF will be clearly marked as a technical override.</p>
+      <label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="overrideConfirm" style="width:auto;margin-top:3px"> My teacher directed me to use the failsafe, or Submit for Review is unavailable because of a technical problem.</label>
+      <button type="button" id="overridePdfBtn" onclick="technicalOverridePdf()" style="margin-top:10px">Generate Technical Override PDF</button>
+    </div>
+  </details>
 </section>
 </main>
 <script>
@@ -343,7 +348,7 @@ function completionInfo(){
 function renderReview(){
   const valid=!!reviewData && reviewData.passed===true && reviewFingerprint===finalFingerprint();
   $("pdfBtn").disabled=!valid;
-  $("pdfNote").innerHTML=valid?"<b>PDF unlocked.</b> Your responses passed review and the feedback will be included.":"<b>Save as PDF is locked until your responses pass Submit for Review.</b>";
+  $("pdfNote").innerHTML=valid?"<b>PDF unlocked.</b> Your responses passed review and the feedback will be included.":"<b>Save as PDF is locked.</b> Click <b>Submit for Review</b>. A passing review unlocks the PDF.";
   if(!valid){$("reviewResult").style.display="none"; return}
   $("reviewResult").style.display="block";
   $("reviewResult").innerHTML='<span class="scorepill">Review passed</span><p><b>AI feedback:</b> '+escapeHtml(reviewData.feedback||"Review completed.")+'</p>';
@@ -353,10 +358,10 @@ function submitForReview(){
   if(!activeCode){$("reviewStatus").textContent=" Enter your class code and click Load / Start first.";return}
   const finalText=textVal("exit"), checkText=textVal("exit2");
   const finalWords=finalText.split(/\s+/).filter(Boolean), checkWords=checkText.split(/\s+/).filter(Boolean);
-  if(finalWords.length<45 || checkWords.length<20){
-    $("reviewStatus").textContent=" Your final explanation needs about 4–5 complete sentences, and the funded-vs-invested response needs a complete explanation. Add more reasoning before submitting.";return;
+  if(finalWords.length<24 || checkWords.length<12){
+    $("reviewStatus").textContent=" Your final explanation should be about 2–3 complete sentences, and the funded-vs-invested response should clearly explain the difference. Add a little more reasoning before submitting.";return;
   }
-  $("reviewBtn").disabled=true; $("pdfBtn").disabled=true; $("technicalFallback").style.display="none";
+  $("reviewBtn").disabled=true; $("pdfBtn").disabled=true; 
   $("reviewStatus").textContent=" Saving your work before AI review…";
   localSave();
 
@@ -373,7 +378,7 @@ function submitForReview(){
       localSave(); serverDirty=true;
       if(reviewData.passed){
         $("reviewStatus").textContent=" Review passed. PDF unlocked.";
-        $("technicalFallback").style.display="none";
+        
       }else{
         $("reviewStatus").textContent=" Revision needed. Read the feedback, revise both boxes as needed, then Submit for Review again.";
       }
@@ -385,8 +390,8 @@ function submitForReview(){
     .catch(err=>{
       $("reviewBtn").disabled=false;
       localSave();
-      $("technicalFallback").style.display="block";
-      $("reviewStatus").textContent=" Review could not connect or timed out. Your work is safe on this device. Retry first. If the technical problem continues, scroll to the Technical fallback section at the bottom of the page. "+(err&&err.message?err.message:"");
+      
+      $("reviewStatus").textContent=" Review could not connect or timed out. Your work is safe on this device. Retry first. If the problem continues, use Emergency Backup or the Technical / Teacher Failsafe at the very bottom of the page. "+(err&&err.message?err.message:"");
     });
 }
 
@@ -402,6 +407,10 @@ function downloadEmergencyBackup(){
 }
 
 function technicalOverridePdf(){
+  if(!$("overrideConfirm") || !$("overrideConfirm").checked){
+    alert("Check the confirmation box first. The failsafe is only for a technical problem or when your teacher directs you to use it.");
+    return;
+  }
   localSave();
   const c=completionInfo();
   const esc=s=>escapeHtml(String(s||"")).replace(/\n/g,"<br>");
